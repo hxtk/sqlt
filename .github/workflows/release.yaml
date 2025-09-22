@@ -3,6 +3,11 @@ name: Release
 on:
   workflow_dispatch: {} # manual trigger
 
+permissions:
+  contents: write    # allow pushing commits & tags
+  issues: write      # allow semantic-release to create GitHub release notes
+  pull-requests: write # optional, only needed if you want semantic-release to comment on PRs
+
 jobs:
   release:
     runs-on: ubuntu-latest
