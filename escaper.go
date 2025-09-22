@@ -3,6 +3,7 @@ package sqlt
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"text/template"
 	"text/template/parse"
 )
@@ -15,31 +16,31 @@ var ErrUnexpectedNode = errors.New("unexpected node while escaping template")
 
 const escapeFuncName = "_sqlt_escapeSql"
 
-func escapeNode(t *template.Template, node parse.Node) error {
+func escapeNode(t *template.Template, node parse.Node, safe []string) error {
 	switch n := node.(type) {
 	case *parse.ActionNode:
-		return escapeAction(n)
+		return escapeAction(n, safe)
 	case *parse.BreakNode, *parse.CommentNode, *parse.ContinueNode, *parse.TextNode:
 		return nil
 
 	case *parse.IfNode:
-		return escapeBranch(t, &n.BranchNode)
+		return escapeBranch(t, &n.BranchNode, safe)
 	case *parse.RangeNode:
-		return escapeBranch(t, &n.BranchNode)
+		return escapeBranch(t, &n.BranchNode, safe)
 	case *parse.WithNode:
-		return escapeBranch(t, &n.BranchNode)
+		return escapeBranch(t, &n.BranchNode, safe)
 
 	case *parse.ListNode:
-		return escapeList(t, n)
+		return escapeList(t, n, safe)
 
 	case *parse.TemplateNode:
-		return escapeTemplate(t, n)
+		return escapeTemplate(t, n, safe)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnexpectedNode, node.String())
 	}
 }
 
-func escapeAction(n *parse.ActionNode) error {
+func escapeAction(n *parse.ActionNode, safe []string) error {
 	if len(n.Pipe.Decl) != 0 {
 		return nil
 	}
@@ -50,7 +51,7 @@ func escapeAction(n *parse.ActionNode) error {
 
 	cmd := n.Pipe.Cmds[len(n.Pipe.Cmds)-1]
 	if idNode, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
-		if escapeFuncName == idNode.Ident {
+		if slices.Contains(safe, idNode.Ident) {
 			return nil
 		}
 	}
@@ -69,21 +70,21 @@ func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 	}
 }
 
-func escapeBranch(t *template.Template, n *parse.BranchNode) error {
-	err := escapeList(t, n.List)
+func escapeBranch(t *template.Template, n *parse.BranchNode, safe []string) error {
+	err := escapeList(t, n.List, safe)
 	if err != nil {
 		return err
 	}
-	return escapeList(t, n.ElseList)
+	return escapeList(t, n.ElseList, safe)
 }
 
-func escapeList(t *template.Template, n *parse.ListNode) error {
+func escapeList(t *template.Template, n *parse.ListNode, safe []string) error {
 	if n == nil {
 		return nil
 	}
 
 	for _, v := range n.Nodes {
-		err := escapeNode(t, v)
+		err := escapeNode(t, v, safe)
 		if err != nil {
 			return err
 		}
@@ -91,11 +92,11 @@ func escapeList(t *template.Template, n *parse.ListNode) error {
 	return nil
 }
 
-func escapeTemplate(t *template.Template, n *parse.TemplateNode) error {
+func escapeTemplate(t *template.Template, n *parse.TemplateNode, safe []string) error {
 	tpl := t.Lookup(n.Name)
 	if tpl == nil {
 		return nil
 	}
 
-	return escapeNode(tpl, tpl.Root)
+	return escapeNode(tpl, tpl.Root, safe)
 }

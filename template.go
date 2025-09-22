@@ -134,7 +134,7 @@ func (t *Template) preExec() (*template.Template, []Sanitizer, error) {
 
 	funcMap := make(template.FuncMap, len(sanMap))
 	for k, v := range sanMap {
-		funcMap[k] = v
+		funcMap[k] = v.Format
 	}
 	tpl.Funcs(funcMap)
 
@@ -150,12 +150,13 @@ func (t *Template) escape() error {
 			return
 		}
 		if t.text.Tree != nil {
-			t.escErr = escapeNode(t.text, t.text.Root)
+			safeNames := slices.Collect(maps.Keys(t.sanitizers))
+			t.escErr = escapeNode(t.text, t.text.Root, safeNames)
 			if t.escErr != nil {
 				return
 			}
 			for _, v := range t.text.Templates() {
-				t.escErr = escapeNode(v, v.Root)
+				t.escErr = escapeNode(v, v.Root, safeNames)
 				if t.escErr != nil {
 					return
 				}
@@ -173,9 +174,10 @@ func (t *Template) Clone() (*Template, error) {
 	}
 
 	return &Template{
-		text:    tpl,
-		escErr:  t.escErr,
-		escaped: t.escaped,
+		text:       tpl,
+		sanitizers: t.sanitizers,
+		escErr:     t.escErr,
+		escaped:    t.escaped,
 	}, nil
 }
 
@@ -224,8 +226,9 @@ func (t *Template) Sanitizers(sanitizers SanitizerMap) *Template {
 	// Add the sanitizers to the current FuncMap so the template can compile.
 	funcMap := make(template.FuncMap, len(sanitizers))
 	for k, v := range sanitizers {
-		funcMap[k] = v()
+		funcMap[k] = v().Format
 	}
+	t.text.Funcs(funcMap)
 
 	maps.Copy(t.sanitizers, sanitizers)
 	return t
