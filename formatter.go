@@ -17,13 +17,13 @@ func (f *argFormatter) Format(arg any) string {
 		idx = len(f.args)
 		f.args = append(f.args, arg)
 	}
-	return fmt.Sprintf("@arg%d", idx)
+	return fmt.Sprintf("@sqlt%d", idx)
 }
 
 func (f *argFormatter) Args() pgx.NamedArgs {
 	out := make(pgx.NamedArgs, len(f.args))
 	for i, v := range f.args {
-		out[fmt.Sprintf("arg%d", i)] = v
+		out[fmt.Sprintf("sqlt%d", i)] = v
 	}
 	return out
 }

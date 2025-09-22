@@ -21,9 +21,9 @@ const testArgFormatterWant = `
 SELECT
   foo, bar, baz
 FROM table
-WHERE foo = @arg0
-  AND bar = @arg1
-  OR baz = @arg0
+WHERE foo = @sqlt0
+  AND bar = @sqlt1
+  OR baz = @sqlt0
 `
 
 func TestArgFormatter(t *testing.T) {
