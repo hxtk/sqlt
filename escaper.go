@@ -7,6 +7,10 @@ import (
 	"text/template/parse"
 )
 
+// ErrUnexpectedNode indicates that the escaper failed to escape the template.
+//
+// This error should never occur, and if it does, it indicates a bug in this
+// package.
 var ErrUnexpectedNode = errors.New("unexpected node while escaping template")
 
 const escapeFuncName = "_sqlt_escapeSql"

@@ -78,9 +78,16 @@ linters:
     revive:
       enable-all-rules: true
       rules:
+          # lll handles this check
         - name: line-length-limit
           disabled: true
+
+          # mnd handles this check.
         - name: add-constant
+          disabled: true
+
+          # gocyclo handles this check.
+        - name: cognitive-complexity
           disabled: true
   exclusions:
     generated: lax
