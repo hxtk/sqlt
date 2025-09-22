@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
