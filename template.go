@@ -149,17 +149,17 @@ func (t *Template) escape() error {
 		if t.escaped {
 			return
 		}
+		safeNames := slices.Collect(maps.Keys(t.sanitizers))
 		if t.text.Tree != nil {
-			safeNames := slices.Collect(maps.Keys(t.sanitizers))
 			t.escErr = escapeNode(t.text, t.text.Root, safeNames)
 			if t.escErr != nil {
 				return
 			}
-			for _, v := range t.text.Templates() {
-				t.escErr = escapeNode(v, v.Root, safeNames)
-				if t.escErr != nil {
-					return
-				}
+		}
+		for _, v := range t.text.Templates() {
+			t.escErr = escapeNode(v, v.Root, safeNames)
+			if t.escErr != nil {
+				return
 			}
 		}
 	})
@@ -188,6 +188,20 @@ func (t *Template) ParseFS(fsys fs.FS, patterns ...string) (*Template, error) {
 	}
 
 	_, err := t.text.ParseFS(fsys, patterns...)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+// ParseFiles loads many templates from a file system interface.
+func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
+	if t.escaped {
+		return nil, ErrAlreadyUsed
+	}
+
+	_, err := t.text.ParseFiles(filenames...)
 	if err != nil {
 		return nil, err
 	}

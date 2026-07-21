@@ -3,6 +3,7 @@ package sqlt
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
@@ -175,4 +176,18 @@ SELECT * FROM t {{ template "inner" . }}
 	require.Contains(t, q, "WHERE col = @sqlt0")
 	require.Equal(t, pgx.NamedArgs{"sqlt0": "v"}, args)
 	require.Contains(t, q, "-- comment inside template")
+}
+
+func TestTimeInBranch(t *testing.T) {
+	tpl, err := New("").ParseFiles("testdata/query.sql")
+	require.NoError(t, err)
+
+	now := time.Now()
+	q, args, err := tpl.ExecuteTemplate("query.sql", struct{ Since *time.Time }{Since: &now})
+	require.NoError(t, err)
+
+	require.Equal(t, `SELECT * FROM table
+WHERE updatetime > @sqlt0
+`, q)
+	require.Equal(t, pgx.NamedArgs{"sqlt0": &now}, args)
 }
