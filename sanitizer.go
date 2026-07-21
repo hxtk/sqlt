@@ -27,7 +27,25 @@ type Sanitizer interface {
 	//
 	// A Template calls args after it finishes executing the template to
 	// retrieve all bound parameters created in the course of template execution.
+	//
+	// When implementing a Sanitizer, take care that all your sanitizers use
+	// non-overlapping parameter namespaces. This package reserves the `sqlt`
+	// prefix as its own namespace.
 	Args() pgx.NamedArgs
+}
+
+// SanitizerErr is a sanitizer that can fail.
+//
+// If a sanitizer is a SanitizerErr, the Template will call its Err method to
+// check that execution succeeded. If one or more Sanitizers implement
+// SanitizerErr and return a non-nil error, the template shall return a multierr
+// combining all non-nil errors.
+type SanitizerErr interface {
+	Sanitizer
+
+	// Err returns the error that occurred during formatting, or nil
+	// on success.
+	Err() error
 }
 
 // SanitizerFunc defines a function that returns a new instance of a Sanitizer.
@@ -58,14 +76,53 @@ func collectArgs(sanitizers ...Sanitizer) pgx.NamedArgs {
 		return pgx.NamedArgs{}
 	}
 
-	allArgs := make([]pgx.NamedArgs, 0, len(sanitizers))
+	allArgs := make(pgx.NamedArgs)
 	for _, v := range sanitizers {
-		allArgs = append(allArgs, v.Args())
+		args := v.Args()
+		if v == nil {
+			continue
+		}
+		maps.Copy(allArgs, args)
 	}
 
-	for i := 1; i < len(allArgs); i++ {
-		maps.Copy(allArgs[0], allArgs[i])
-	}
+	return allArgs
+}
 
-	return allArgs[0]
+type functionSanitizer[T any] struct {
+	fn   func(arg T) (string, pgx.NamedArgs, error)
+	args pgx.NamedArgs
+	err  error
+}
+
+// Args implements [SanitizerErr].
+func (f *functionSanitizer[T]) Args() pgx.NamedArgs {
+	return f.args
+}
+
+// Err implements [SanitizerErr].
+func (f *functionSanitizer[T]) Err() error {
+	return f.err
+}
+
+// Format implements [SanitizerErr].
+func (f *functionSanitizer[T]) Format(arg any) string {
+	var str string
+	str, f.args, f.err = f.fn(arg.(T))
+	return str
+}
+
+// SanitizerF converts a single function producing a formatted string, args, and error
+// into a SanitizerErr that returns a string from the Format call and saves the
+// args and error. Calling Args or Err on the resulting SanitizerErr returns the
+// parameter bindings and error produced by the function, respectively, if invoked
+// after Format.
+//
+// SanitizerF uses a generic argument value to permit implementing these functions
+// with strong typing.
+func SanitizerF[T any](fn func(arg T) (string, pgx.NamedArgs, error)) SanitizerFunc {
+	return func() Sanitizer {
+		return &functionSanitizer[T]{
+			fn: fn,
+		}
+	}
 }
