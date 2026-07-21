@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/jackc/pgx/v5"
+	"go.uber.org/multierr"
 )
 
 // ErrAlreadyUsed occurs when a program calls Parse or ParseFS on a template
@@ -75,7 +76,7 @@ func New(name string) *Template {
 //		panic(err)
 //	}
 //
-//	query, args, err := tpl.Execute(map[string]int{"id": 3}
+//	query, args, err := tpl.Execute(map[string]int{"id": 3})
 //	if err != nil {
 //		panic(err)
 //	}
@@ -89,6 +90,15 @@ func (t *Template) Execute(data any) (query string, params pgx.NamedArgs, err er
 
 	var b bytes.Buffer
 	err = tpl.Execute(&b, data)
+	if err != nil {
+		return "", nil, err
+	}
+
+	for _, v := range sans {
+		if serr, ok := v.(SanitizerErr); ok {
+			multierr.AppendFunc(&err, serr.Err)
+		}
+	}
 	if err != nil {
 		return "", nil, err
 	}
@@ -109,6 +119,15 @@ func (t *Template) ExecuteTemplate(name string, data any) (query string, params 
 
 	var b bytes.Buffer
 	err = tpl.ExecuteTemplate(&b, name, data)
+	if err != nil {
+		return "", nil, err
+	}
+
+	for _, v := range sans {
+		if serr, ok := v.(SanitizerErr); ok {
+			err = multierr.Append(err, serr.Err())
+		}
+	}
 	if err != nil {
 		return "", nil, err
 	}
