@@ -1,3 +1,15 @@
+# [1.1.0](https://github.com/hxtk/sqlt/compare/v1.0.0...v1.1.0) (2026-08-08)
+
+
+### Bug Fixes
+
+* Escape child templates even when root template is nil ([7d6de1f](https://github.com/hxtk/sqlt/commit/7d6de1fa947ead8dfcacd10fc150ad29df49787d))
+
+
+### Features
+
+* Support erroring sanitizers ([2ac5cc5](https://github.com/hxtk/sqlt/commit/2ac5cc5a4d48851bec5e534af6db323b9fbdcd37))
+
 # 1.0.0 (2025-09-22)
 
 
